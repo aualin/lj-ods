@@ -1,4 +1,4 @@
-local genx = require("genx")
+ local genx = require("genx")
 local ffi = require("ffi")
 local minizip = require("minizip")
 local zlib = require("zlib")
@@ -30,22 +30,16 @@ function odFuncs:save(filename)
 	local svgNS = xml:ns("urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0", "svg")
 	local tableNS = xml:ns("urn:oasis:names:tc:opendocument:xmlns:table:1.0", "table")
 	local textNS = xml:ns("urn:oasis:names:tc:opendocument:xmlns:text:1.0","text")
+	local configNS = xml:ns("urn:oasis:names:tc:opendocument:xmlns:config:1.0")
 	xml:start_element("document-meta", officeNS)
 	xml:start_element("meta", officeNS)
-	xml:start_element("creation-date", metaNS)
-	xml:text(os.date())
-	xml:end_element()
-	xml:start_element("date", dcNS)
-	xml:end_element()
 	xml:start_element("editing-duration", metaNS)
+	xml:text("PT0H0M0S")
 	xml:end_element()
 	xml:start_element("editing-cycles", metaNS)
 	xml:text("1")
 	xml:end_element()
 	xml:start_element("document-statistic", metaNS)
-	xml:add_attr("table-count", "1", metaNS)
-	xml:add_attr("cell-count", "1", metaNS)
-	xml:add_attr("object-count", "0", metaNS)
 	xml:end_element()
 	xml:start_element("generator", metaNS)
 	xml:text("lj-ods")
@@ -91,21 +85,32 @@ function odFuncs:save(filename)
 		end
 		lastK = k
 		xml:start_element("table-row", tableNS)
-		local lastA = 0
+		local sortedColumns = {}
 		for a,b in pairs(v) do
+			sortedColumns[#sortedColumns+1] = {a,b}
+		end
+		table.sort(sortedColumns, function(lh,rh) return lh[1] < rh[1] end)
+		local lastColumn = 0
+		for a,b in ipairs(sortedColumns) do
 			-- Fill up empty columns
-			local distance = a-lastA-1
+			local distance = b[1]-lastColumn-1
 			if distance > 0 then
-				print(distance)
 				xml:start_element("table-cell", tableNS)
 				xml:add_attr("number-columns-repeated", tostring(distance), tableNS)
 				xml:end_element()
 			end
-			lastA = a
+			lastColumn = b[1]
 			xml:start_element("table-cell", tableNS)
-			xml:add_attr("value-type", "string", officeNS)
+			-- TODO: Fix...
+--			if type(b) == "number" then
+--				xml:add_attr("value-type", "float", tableNS)
+--				xml:add_attr("value", tostring(b[2]), officeNS)
+--			else
+				xml:add_attr("value-type", "string", tableNS)
+--				xml:add_attr("string-value", tostring(b[2]), officeNS)
+--			end
 			xml:start_element("p", textNS)
-			xml:text(b)
+			xml:text(tostring(b[2]))
 			xml:end_element()
 			xml:end_element()
 		end
